@@ -34,7 +34,7 @@ smart-leds = "0.4"
 embedded-graphics = "0.8"
 
 [build-dependencies]
-embuild = "0.32"
+embuild = "0.33.0"
 
 [profile.release]
 strip = true
