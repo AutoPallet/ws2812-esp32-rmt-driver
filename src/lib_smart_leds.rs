@@ -86,9 +86,7 @@ where
         channel: impl Peripheral<P = C> + 'd,
         pin: impl Peripheral<P = impl OutputPin> + 'd,
     ) -> Result<Self, Ws2812Esp32RmtDriverError> {
-        Self::new_with_ws2812_driver(Ws2812Esp32RmtDriver::<'d>::new(
-            channel, pin,
-        )?)
+        Self::new_with_ws2812_driver(Ws2812Esp32RmtDriver::<'d>::new(channel, pin)?)
     }
 
     /// Create a new driver wrapper with `TxRmtDriver`.

@@ -151,19 +151,27 @@ impl From<EspError> for Ws2812Esp32RmtDriverError {
 /// # #[cfg(not(target_vendor = "espressif"))]
 /// # use ws2812_esp32_rmt_driver::mock::esp_idf_hal;
 /// #
+/// # use core::time::Duration;
 /// # use esp_idf_hal::peripherals::Peripherals;
 /// # use esp_idf_hal::rmt::config::TransmitConfig;
 /// # use esp_idf_hal::rmt::TxRmtDriver;
+/// # use ws2812_esp32_rmt_driver::driver::Ws2812Esp32RmtDriverBuilder;
 /// #
 /// # let peripherals = Peripherals::take().unwrap();
 /// # let led_pin = peripherals.pins.gpio27;
 /// # let channel = peripherals.rmt.channel0;
-/// #
-/// let tx_driver_config = TransmitConfig::new()
+///
+/// // WS2812B timing parameters.
+/// const WS2812_T0H_NS: Duration = Duration::from_nanos(400);
+/// const WS2812_T0L_NS: Duration = Duration::from_nanos(850);
+/// const WS2812_T1H_NS: Duration = Duration::from_nanos(800);
+/// const WS2812_T1L_NS: Duration = Duration::from_nanos(450);
+///
+/// let driver_config = TransmitConfig::new()
 ///     .clock_divider(1); // Required parameter.
 /// let tx_driver = TxRmtDriver::new(channel, led_pin, &driver_config).unwrap();
-/// let builder = Ws2812Esp32RmtDriverBuilder::new_with_rmt_driver(tx_driver).unwrap()
-///    .encoder_duration(400, 850, 800, 450).unwrap()
+/// let driver = Ws2812Esp32RmtDriverBuilder::new_with_rmt_driver(tx_driver).unwrap()
+///    .encoder_duration(&WS2812_T0H_NS, &WS2812_T0L_NS, &WS2812_T1H_NS, &WS2812_T1L_NS).unwrap()
 ///    .build().unwrap();
 /// ```
 pub struct Ws2812Esp32RmtDriverBuilder<'d> {
