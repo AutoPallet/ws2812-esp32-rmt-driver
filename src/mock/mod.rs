@@ -110,6 +110,7 @@ pub mod esp_idf_hal {
         use super::gpio::OutputPin;
         use super::peripheral::Peripheral;
         use super::sys::EspError;
+        use super::units::Hertz;
         use config::TransmitConfig;
         use core::marker::PhantomData;
         use paste::paste;
@@ -178,6 +179,11 @@ pub mod esp_idf_hal {
             ) -> Result<Self, EspError> {
                 Ok(Self { _p: PhantomData })
             }
+
+            pub fn counter_clock(&self) -> Result<Hertz, EspError> {
+                let ticks_hz: u32 = 80000000; // 80MHz
+                Ok(Hertz(ticks_hz))
+            }
         }
 
         /// Mock module for `esp_idf_hal::rmt::config`
@@ -209,6 +215,16 @@ pub mod esp_idf_hal {
                 }
             }
         }
+    }
+
+    /// Mock module for `esp_idf_hal::units`
+    pub mod units {
+        pub type ValueType = u32;
+        pub type LargeValueType = u64;
+
+        /// Mock struct for `esp_idf_hal::units::Hertz`
+        #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash, Default)]
+        pub struct Hertz(pub ValueType);
     }
 }
 

@@ -10,14 +10,12 @@ use core::marker::PhantomData;
 
 #[cfg(not(target_vendor = "espressif"))]
 use crate::mock::esp_idf_hal;
+#[cfg(target_vendor = "espressif")]
+use esp_idf_hal::rmt::{PinState, Pulse, Symbol};
 use esp_idf_hal::{
     gpio::OutputPin,
     peripheral::Peripheral,
     rmt::{config::TransmitConfig, RmtChannel, TxRmtDriver},
-};
-#[cfg(target_vendor = "espressif")]
-use esp_idf_hal::{
-    rmt::{PinState, Pulse, Symbol},
     units::Hertz,
 };
 
@@ -36,40 +34,44 @@ const WS2812_T1L_NS: Duration = Duration::from_nanos(450);
 
 /// Converter to a sequence of RMT items.
 #[repr(C)]
-#[cfg(target_vendor = "espressif")]
 struct Ws2812Esp32RmtItemEncoder {
     /// The RMT item that represents a 0 code.
+    #[cfg(target_vendor = "espressif")]
     bit0: Symbol,
     /// The RMT item that represents a 1 code.
+    #[cfg(target_vendor = "espressif")]
     bit1: Symbol,
 }
 
-#[cfg(target_vendor = "espressif")]
 impl Ws2812Esp32RmtItemEncoder {
-    /// Creates a new encoder with the given clock frequency.
-    ///
-    /// # Arguments
-    ///
-    /// * `clock_hz` - The clock frequency.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the clock frequency is invalid or if the RMT item encoder cannot be created.
-    fn new(clock_hz: Hertz) -> Result<Self, EspError> {
-        let (bit0, bit1) = (
-            Symbol::new(
-                Pulse::new_with_duration(clock_hz, PinState::High, &WS2812_T0H_NS)?,
-                Pulse::new_with_duration(clock_hz, PinState::Low, &WS2812_T0L_NS)?,
-            ),
-            Symbol::new(
-                Pulse::new_with_duration(clock_hz, PinState::High, &WS2812_T1H_NS)?,
-                Pulse::new_with_duration(clock_hz, PinState::Low, &WS2812_T1L_NS)?,
-            ),
-        );
-
-        Ok(Self { bit0, bit1 })
+    /// Creates a new `Ws2812Esp32RmtItemEncoder`.
+    fn new(
+        clock_hz: Hertz,
+        t0h: &Duration,
+        t0l: &Duration,
+        t1h: &Duration,
+        t1l: &Duration,
+    ) -> Result<Self, Ws2812Esp32RmtDriverError> {
+        #[cfg(target_vendor = "espressif")]
+        {
+            let (bit0, bit1) = (
+                Symbol::new(
+                    Pulse::new_with_duration(clock_hz, PinState::High, &t0h)?,
+                    Pulse::new_with_duration(clock_hz, PinState::Low, &t0l)?,
+                ),
+                Symbol::new(
+                    Pulse::new_with_duration(clock_hz, PinState::High, &t1h)?,
+                    Pulse::new_with_duration(clock_hz, PinState::Low, &t1l)?,
+                ),
+            );
+            Ok(Self { bit0, bit1 })
+        }
+        #[cfg(not(target_vendor = "espressif"))]
+        {
+            let _ = (clock_hz, t0h, t0l, t1h, t1l);
+            Ok(Self {})
+        }
     }
-
     /// Encodes a block of data as a sequence of RMT items.
     ///
     /// # Arguments
@@ -80,6 +82,7 @@ impl Ws2812Esp32RmtItemEncoder {
     ///
     /// An iterator over the RMT items that represent the encoded data.
     #[inline]
+    #[cfg(target_vendor = "espressif")]
     fn encode_iter<'a, 'b, T>(&'a self, src: T) -> impl Iterator<Item = Symbol> + Send + 'a
     where
         'b: 'a,
@@ -139,6 +142,107 @@ impl From<EspError> for Ws2812Esp32RmtDriverError {
     }
 }
 
+/// Builder for `Ws2812Esp32RmtDriver`.
+///
+/// # Examples
+///
+///
+/// ```
+/// # #[cfg(not(target_vendor = "espressif"))]
+/// # use ws2812_esp32_rmt_driver::mock::esp_idf_hal;
+/// #
+/// # use esp_idf_hal::peripherals::Peripherals;
+/// # use esp_idf_hal::rmt::config::TransmitConfig;
+/// # use esp_idf_hal::rmt::TxRmtDriver;
+/// #
+/// # let peripherals = Peripherals::take().unwrap();
+/// # let led_pin = peripherals.pins.gpio27;
+/// # let channel = peripherals.rmt.channel0;
+/// #
+/// let tx_driver_config = TransmitConfig::new()
+///     .clock_divider(1); // Required parameter.
+/// let tx_driver = TxRmtDriver::new(channel, led_pin, &driver_config).unwrap();
+/// let builder = Ws2812Esp32RmtDriverBuilder::new_with_rmt_driver(tx_driver).unwrap()
+///    .encoder_duration(400, 850, 800, 450).unwrap()
+///    .build().unwrap();
+/// ```
+pub struct Ws2812Esp32RmtDriverBuilder<'d> {
+    /// TxRMT driver.
+    tx: TxRmtDriver<'d>,
+    /// `u8`-to-`rmt_item32_t` Encoder
+    encoder: Option<Ws2812Esp32RmtItemEncoder>,
+}
+
+impl<'d> Ws2812Esp32RmtDriverBuilder<'d> {
+    /// Creates a new `Ws2812Esp32RmtDriverBuilder`.
+    pub fn new<C: RmtChannel>(
+        channel: impl Peripheral<P = C> + 'd,
+        pin: impl Peripheral<P = impl OutputPin> + 'd,
+    ) -> Result<Self, Ws2812Esp32RmtDriverError> {
+        let config = TransmitConfig::new().clock_divider(1);
+        let tx = TxRmtDriver::new(channel, pin, &config)?;
+
+        Self::new_with_rmt_driver(tx)
+    }
+
+    /// Creates a new `Ws2812Esp32RmtDriverBuilder` with `TxRmtDriver`.
+    pub fn new_with_rmt_driver(tx: TxRmtDriver<'d>) -> Result<Self, Ws2812Esp32RmtDriverError> {
+        Ok(Self { tx, encoder: None })
+    }
+
+    /// Sets the encoder duration times.
+    ///
+    /// # Arguments
+    ///
+    /// * `clock_hz` - The clock frequency.
+    /// * `t0h` - T0H duration time (0 code, high voltage time)
+    /// * `t0l` - T0L duration time (0 code, low voltage time)
+    /// * `t1h` - T1H duration time (1 code, high voltage time)
+    /// * `t1l` - T1L duration time (1 code, low voltage time)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the encoder initialization failed.
+    pub fn encoder_duration(
+        mut self,
+        t0h: &Duration,
+        t0l: &Duration,
+        t1h: &Duration,
+        t1l: &Duration,
+    ) -> Result<Self, Ws2812Esp32RmtDriverError> {
+        let clock_hz = self.tx.counter_clock()?;
+        self.encoder = Some(Ws2812Esp32RmtItemEncoder::new(
+            clock_hz, t0h, t0l, t1h, t1l,
+        )?);
+        Ok(self)
+    }
+
+    /// Builds the `Ws2812Esp32RmtDriver`.
+    pub fn build(self) -> Result<Ws2812Esp32RmtDriver<'d>, Ws2812Esp32RmtDriverError> {
+        let encoder = if let Some(encoder) = self.encoder {
+            encoder
+        } else {
+            let clock_hz = self.tx.counter_clock()?;
+            Ws2812Esp32RmtItemEncoder::new(
+                clock_hz,
+                &WS2812_T0H_NS,
+                &WS2812_T0L_NS,
+                &WS2812_T1H_NS,
+                &WS2812_T1L_NS,
+            )?
+        };
+
+        Ok(Ws2812Esp32RmtDriver {
+            tx: self.tx,
+            encoder,
+            #[cfg(not(target_vendor = "espressif"))]
+            pixel_data: None,
+            #[cfg(not(target_vendor = "espressif"))]
+            phantom: Default::default(),
+        })
+    }
+}
+
 /// WS2812 ESP32 RMT driver wrapper.
 ///
 /// # Examples
@@ -167,7 +271,6 @@ pub struct Ws2812Esp32RmtDriver<'d> {
     /// TxRMT driver.
     tx: TxRmtDriver<'d>,
     /// `u8`-to-`rmt_item32_t` Encoder
-    #[cfg(target_vendor = "espressif")]
     encoder: Ws2812Esp32RmtItemEncoder,
 
     /// Pixel binary array to be written
@@ -194,23 +297,7 @@ impl<'d> Ws2812Esp32RmtDriver<'d> {
         channel: impl Peripheral<P = C> + 'd,
         pin: impl Peripheral<P = impl OutputPin> + 'd,
     ) -> Result<Self, Ws2812Esp32RmtDriverError> {
-        #[cfg(target_vendor = "espressif")]
-        {
-            let config = TransmitConfig::new().clock_divider(1);
-            let tx = TxRmtDriver::new(channel, pin, &config)?;
-
-            Self::new_with_rmt_driver(tx)
-        }
-        #[cfg(not(target_vendor = "espressif"))] // Mock implement
-        {
-            let config = TransmitConfig::new();
-            let tx = TxRmtDriver::new(channel, pin, &config)?;
-            Ok(Self {
-                tx,
-                pixel_data: None,
-                phantom: Default::default(),
-            })
-        }
+        Ws2812Esp32RmtDriverBuilder::new(channel, pin)?.build()
     }
 
     /// Creates a WS2812 ESP32 RMT driver wrapper with `TxRmtDriver`.
@@ -238,21 +325,7 @@ impl<'d> Ws2812Esp32RmtDriver<'d> {
     ///
     /// Returns an error if the RMT driver initialization failed.
     pub fn new_with_rmt_driver(tx: TxRmtDriver<'d>) -> Result<Self, Ws2812Esp32RmtDriverError> {
-        #[cfg(target_vendor = "espressif")]
-        {
-            let clock_hz = tx.counter_clock()?;
-            let encoder = Ws2812Esp32RmtItemEncoder::new(clock_hz)?;
-
-            Ok(Self { tx, encoder })
-        }
-        #[cfg(not(target_vendor = "espressif"))] // Mock implement
-        {
-            Ok(Self {
-                tx,
-                pixel_data: None,
-                phantom: Default::default(),
-            })
-        }
+        Ws2812Esp32RmtDriverBuilder::new_with_rmt_driver(tx)?.build()
     }
 
     /// Writes pixel data from a pixel-byte sequence to the IO pin.
