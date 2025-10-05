@@ -86,11 +86,9 @@ where
         channel: impl Peripheral<P = C> + 'd,
         pin: impl Peripheral<P = impl OutputPin> + 'd,
     ) -> Result<Self, Ws2812Esp32RmtDriverError> {
-        let driver = Ws2812Esp32RmtDriver::<'d>::new(channel, pin)?;
-        Ok(Self {
-            driver,
-            phantom: Default::default(),
-        })
+        Self::new_with_ws2812_driver(Ws2812Esp32RmtDriver::<'d>::new(
+            channel, pin,
+        )?)
     }
 
     /// Create a new driver wrapper with `TxRmtDriver`.
@@ -114,7 +112,13 @@ where
     /// let driver = TxRmtDriver::new(channel, led_pin, &driver_config).unwrap();
     /// ```
     pub fn new_with_rmt_driver(tx: TxRmtDriver<'d>) -> Result<Self, Ws2812Esp32RmtDriverError> {
-        let driver = Ws2812Esp32RmtDriver::<'d>::new_with_rmt_driver(tx)?;
+        Self::new_with_ws2812_driver(Ws2812Esp32RmtDriver::<'d>::new_with_rmt_driver(tx)?)
+    }
+
+    /// Create a new driver wrapper with `Ws2812Esp32RmtDriver`.
+    pub fn new_with_ws2812_driver(
+        driver: Ws2812Esp32RmtDriver<'d>,
+    ) -> Result<Self, Ws2812Esp32RmtDriverError> {
         Ok(Self {
             driver,
             phantom: Default::default(),
