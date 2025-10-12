@@ -16,10 +16,11 @@ fn main() -> ! {
     // or else some patches to the runtime implemented by esp-idf-sys might not link properly.
     esp_idf_sys::link_patches();
 
-    const WS2811_T0H_NS: Duration = Duration::from_nanos(350);
-    const WS2811_T0L_NS: Duration = Duration::from_nanos(1360);
-    const WS2811_T1H_NS: Duration = Duration::from_nanos(1360);
-    const WS2811_T1L_NS: Duration = Duration::from_nanos(350);
+    // Shenzhen Rita Lighting PL2823
+    const PL9823_T0H_NS: Duration = Duration::from_nanos(350);
+    const PL9823_T0L_NS: Duration = Duration::from_nanos(1360);
+    const PL9823_T1H_NS: Duration = Duration::from_nanos(1360);
+    const PL9823_T1L_NS: Duration = Duration::from_nanos(350);
 
     let peripherals = Peripherals::take().unwrap();
     let led_pin = peripherals.pins.gpio25;
@@ -30,10 +31,10 @@ fn main() -> ! {
     let ws2812_driver = Ws2812Esp32RmtDriverBuilder::new_with_rmt_driver(tx_driver)
         .unwrap()
         .encoder_duration(
-            &WS2811_T0H_NS,
-            &WS2811_T0L_NS,
-            &WS2811_T1H_NS,
-            &WS2811_T1L_NS,
+            &PL9823_T0H_NS,
+            &PL9823_T0L_NS,
+            &PL9823_T1H_NS,
+            &PL9823_T1L_NS,
         )
         .unwrap()
         .build()
