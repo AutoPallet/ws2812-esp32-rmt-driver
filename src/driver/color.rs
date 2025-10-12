@@ -198,6 +198,18 @@ fn test_led_pixel_color_brightness() {
 /// ```
 pub type LedPixelColorGrb24 = LedPixelColorImpl<3, 1, 0, 2, 255>;
 
+/// 8-bit RGB LED pixel color (total 32-bit pixel)
+///
+/// # Examples
+///
+/// ```
+/// use ws2812_esp32_rmt_driver::driver::color::{LedPixelColorRgb24, LedPixelColor};
+///
+/// let color = LedPixelColorGrb24::new_with_rgb(1, 2, 3);
+/// assert_eq!(color.as_ref(), [1, 2, 3]);
+/// ```
+pub type LedPixelColorRgb24 = LedPixelColorImpl<3, 0, 1, 2, 255>;
+
 /// 8-bit RGBW LED pixel color (total 32-bit pixel)
 ///
 /// # Examples
