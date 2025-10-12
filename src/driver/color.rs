@@ -205,7 +205,7 @@ pub type LedPixelColorGrb24 = LedPixelColorImpl<3, 1, 0, 2, 255>;
 /// ```
 /// use ws2812_esp32_rmt_driver::driver::color::{LedPixelColorRgb24, LedPixelColor};
 ///
-/// let color = LedPixelColorGrb24::new_with_rgb(1, 2, 3);
+/// let color = LedPixelColorRgb24::new_with_rgb(1, 2, 3);
 /// assert_eq!(color.as_ref(), [1, 2, 3]);
 /// ```
 pub type LedPixelColorRgb24 = LedPixelColorImpl<3, 0, 1, 2, 255>;
