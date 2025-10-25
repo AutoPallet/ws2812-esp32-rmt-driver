@@ -115,16 +115,7 @@ where
         pin: impl Peripheral<P = impl OutputPin> + 'd,
     ) -> Result<Self, Ws2812Esp32RmtDriverError> {
         let driver = Ws2812Esp32RmtDriver::<'d>::new(channel, pin)?;
-        let data = core::iter::repeat(0)
-            .take(S::pixel_len() * CDev::BPP)
-            .collect::<Data>();
-        Ok(Self {
-            driver,
-            data,
-            brightness: u8::MAX,
-            changed: true,
-            _phantom: Default::default(),
-        })
+        Self::new_with_ws2812_driver(driver)
     }
 
     /// Create a new draw target with `TxRmtDriver`.
@@ -149,6 +140,12 @@ where
     /// ```
     pub fn new_with_rmt_driver(tx: TxRmtDriver<'d>) -> Result<Self, Ws2812Esp32RmtDriverError> {
         let driver = Ws2812Esp32RmtDriver::<'d>::new_with_rmt_driver(tx)?;
+        Self::new_with_ws2812_driver(driver)
+    }
+
+    pub fn new_with_ws2812_driver(
+        driver: Ws2812Esp32RmtDriver<'d>,
+    ) -> Result<Self, Ws2812Esp32RmtDriverError> {
         let data = core::iter::repeat(0)
             .take(S::pixel_len() * CDev::BPP)
             .collect::<Data>();
