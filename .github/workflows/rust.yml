@@ -7,9 +7,7 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - name: Install Rust for Xtensa
       uses: esp-rs/xtensa-toolchain@v1.6
@@ -17,7 +15,7 @@ jobs:
         default: true
         version: "1.90.0"
         ldproxy: true
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         path: ws2812-esp32-rmt-driver
     - uses: actions/cache@v4
@@ -39,6 +37,24 @@ jobs:
     - name: Build examples
       run: cargo build --examples --all-features --features=esp-idf-sys/binstart #--release
       working-directory: ./ws2812-esp32-rmt-driver
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        path: ws2812-esp32-rmt-driver
+    - name: Install Rust (stable)
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          ws2812-esp32-rmt-driver/target
+        key: test-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Test
       run: |
         cargo +stable test --target x86_64-unknown-linux-gnu --lib
@@ -50,3 +66,4 @@ jobs:
     - name: Publish (Dry run)
       run: cargo +stable publish --target x86_64-unknown-linux-gnu --dry-run
       working-directory: ./ws2812-esp32-rmt-driver
+
